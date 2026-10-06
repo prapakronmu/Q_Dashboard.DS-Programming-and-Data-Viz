@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Premium Movie Analytics</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: { brandAccent: '#FF6847', glassPanel: 'rgba(30,30,35,0.45)', glassBorder: 'rgba(255,255,255,0.08)' },
+          backdropBlur: { glass: '24px', bgCinematic: '64px' },
+          borderRadius: { vision: '20px', 'vision-lg': '24px' }
+        }
+      }
+    }
+  </script>
+
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://unpkg.com/prop-types/prop-types.min.js"></script>
+  <script src="https://unpkg.com/recharts/umd/Recharts.js"></script>
+
+  <style>
+    body { font-family: 'Inter', 'SF Pro Display', sans-serif; }
+    .glass-panel { background: rgba(30, 30, 35, 0.45); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
+    ::-webkit-scrollbar { width: 0px; height: 0px; }
+  </style>
+</head>
+<body class="bg-black text-white min-h-screen overflow-hidden">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useMemo } = React;
+    const { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Label } = window.Recharts || {};
+
+    class ErrorBoundary extends React.Component {
+      constructor(props) { super(props); this.state = { hasError: false, error: null }; }
+      static getDerivedStateFromError(error) { return { hasError: true, error }; }
+      render() {
+        if (this.state.hasError) return <div className="p-10 text-red-500 font-mono"><h1>Something went wrong.</h1><p>{this.state.error.toString()}</p></div>;
+        return this.props.children;
+      }
+    }
+
+    const IconHome = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>;
+    const IconSearch = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>;
+    const IconPlay = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>;
+    const IconStar = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>;
+    const IconArrowLeft = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>;
+
+    const formatMoney = (val) => val ? `$${(val / 1e6).toFixed(1)}M` : 'N/A';
+    const formatNumber = (val) => val ? val.toLocaleString() : '0';
+
+    function App() {
+      const [movies, setMovies] = useState([]);
+      const [view, setView] = useState('home');
+      const [selectedMovie, setSelectedMovie] = useState(null);
+      const [loading, setLoading] = useState(true);
+      const [errorMsg, setErrorMsg] = useState('');
+
+      useEffect(() => {
+        fetch('data/processed/movies_clean.json')
+          .then(res => res.text())
+          .then(text => {
+            // แก้ไขปัญหา Python พ่นค่า NaN ออกมาใน JSON
+            const fixedText = text.replace(/:\s*NaN/g, ': null');
+            const data = JSON.parse(fixedText);
+            
+            const sorted = data.sort((a, b) => (b.popularity_score || 0) - (a.popularity_score || 0));
+            setMovies(sorted); setSelectedMovie(sorted[0]); setLoading(false);
+          })
+          .catch(err => { setErrorMsg(err.toString()); setLoading(false); });
+      }, []);
+
+      if (loading) return <div className="flex h-screen items-center justify-center">Loading Real Data...</div>;
+      if (errorMsg) return <div className="flex h-screen items-center justify-center text-red-500 font-mono">Error: {errorMsg}</div>;
+
+      const featuredMovie = movies[0];
+      const trendingMovies = movies.slice(1, 15);
+      
+      return (
+        <div className="relative w-full h-screen flex">
+          <div className="fixed inset-0 z-[-1] overflow-hidden">
+            <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-[#FF6847]/30 rounded-full blur-[120px]"></div>
+            <div className="absolute bottom-[-10%] right-[-10%] w-[60vw] h-[60vw] bg-indigo-900/30 rounded-full blur-[150px]"></div>
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-[64px]"></div>
+          </div>
+          <div className="w-[5%] flex flex-col items-center py-8 border-r border-white/10 bg-black/20 backdrop-blur-md">
+            <button onClick={() => setView('home')} className={`p-3 rounded-xl transition-all ${view === 'home' ? 'bg-[#FF6847] text-white shadow-[0_0_15px_rgba(255,104,71,0.5)]' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}>
+              <IconHome />
+            </button>
+            <div className="mt-8 flex flex-col gap-6 text-gray-500">
+              <div className="p-3 hover:text-white cursor-pointer"><IconSearch /></div>
+              <div className="p-3 hover:text-white cursor-pointer"><IconStar /></div>
+            </div>
+          </div>
+          <div className="flex-1 h-full overflow-hidden flex flex-col">
+            <header className="h-20 w-full flex items-center justify-between px-10">
+              <div className="glass-panel px-4 py-2 flex items-center gap-2 rounded-full w-96 text-sm text-gray-400">
+                <IconSearch />
+                <input type="text" placeholder="Search movies, TV shows..." className="bg-transparent outline-none w-full text-white" />
+              </div>
+              <div className="flex items-center gap-6">
+                <span className="font-semibold text-sm">Movies</span>
+                <span className="text-gray-400 text-sm">TV Series</span>
+                <span className="text-gray-400 text-sm">Animation</span>
+                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#FF6847] to-purple-500 border-2 border-white/20"></div>
+              </div>
+            </header>
+            <div className="flex-1 overflow-y-auto px-10 pb-10">
+              {view === 'home' ? (
+                <HomeView featured={featuredMovie} trending={trendingMovies} onSelect={(m) => { setSelectedMovie(m); setView('detail'); }} />
+              ) : (
+                <DetailView movie={selectedMovie} movies={movies} onBack={() => setView('home')} onChangeMovie={setSelectedMovie} />
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function HomeView({ featured, trending, onSelect }) {
+      if (!featured) return null;
+      return (
+        <div className="flex h-full gap-8">
+          <div className="w-[30%] flex flex-col gap-6">
+            <h2 className="text-xl font-bold tracking-wide">New Trailers</h2>
+            <div className="flex flex-col gap-4">
+              {[1,2,3].map((i) => (
+                <div key={i} className="glass-panel rounded-[20px] p-3 flex gap-4 cursor-pointer hover:scale-[1.02] transition-transform">
+                  <div className="w-24 h-16 bg-white/10 rounded-lg flex items-center justify-center text-[#FF6847]"><IconPlay /></div>
+                  <div className="flex flex-col justify-center"><h3 className="text-sm font-semibold">Coming Soon Title {i}</h3><p className="text-xs text-gray-400 mt-1">Action • Sci-Fi</p></div>
+                </div>
+              ))}
+            </div>
+            <h2 className="text-xl font-bold tracking-wide mt-4">Continue Watching</h2>
+            <div className="glass-panel rounded-[20px] p-4 cursor-pointer hover:scale-[1.02] transition-transform">
+               <div className="h-24 bg-gradient-to-r from-gray-800 to-gray-600 rounded-lg mb-3 flex items-end p-2">
+                 <div className="w-full bg-black/50 h-1.5 rounded-full overflow-hidden"><div className="w-2/3 h-full bg-[#FF6847]"></div></div>
+               </div>
+               <h3 className="text-sm font-semibold">Inception</h3><p className="text-xs text-gray-400">1h 45m left</p>
+            </div>
+          </div>
+          <div className="flex-1 flex flex-col gap-8">
+            <div className="relative w-full h-[45%] glass-panel rounded-[24px] overflow-hidden flex flex-col justify-end p-10 cursor-pointer group" onClick={() => onSelect(featured)}>
+               <div className="absolute inset-0 bg-gradient-to-t from-[#0F0F11]/90 to-transparent z-10"></div>
+               <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1440404653325-ab127d49abc1?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center opacity-40 group-hover:scale-105 transition-transform duration-700"></div>
+               <div className="relative z-20 w-3/4">
+                 <div className="flex gap-2 mb-3">
+                   {(featured.genres || []).slice(0,3).map(g => (
+                     <span key={g} className="text-[10px] uppercase tracking-wider px-2 py-1 bg-white/10 rounded-full border border-white/20">{g}</span>
+                   ))}
+                 </div>
+                 <h1 className="text-5xl font-bold mb-4 drop-shadow-lg">{featured.title}</h1>
+                 <p className="text-sm text-gray-300 line-clamp-2 mb-6 leading-relaxed">{featured.overview || "No overview available for this featured title."}</p>
+                 <div className="flex gap-4">
+                   <button className="px-8 py-3 bg-[#FF6847] text-white font-semibold rounded-full flex items-center gap-2 hover:bg-[#FF8469] transition-colors shadow-lg shadow-[#FF6847]/20"><IconPlay /> Watch Now</button>
+                   <button className="px-8 py-3 bg-white/10 text-white font-semibold rounded-full hover:bg-white/20 transition-colors border border-white/10">+ Favorite</button>
+                 </div>
+               </div>
+            </div>
+            <div>
+              <div className="flex justify-between items-end mb-4"><h2 className="text-2xl font-bold">You Might Like</h2><span className="text-sm text-[#FF6847] cursor-pointer">See All</span></div>
+              <div className="flex gap-4 overflow-x-auto pb-4 pt-2 -mx-2 px-2 snap-x">
+                {trending.map(m => (
+                  <div key={m.movie_id} onClick={() => onSelect(m)} className="shrink-0 w-48 h-72 glass-panel rounded-xl flex flex-col justify-end p-4 cursor-pointer hover:scale-105 transition-all duration-300 snap-start relative group overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent z-10"></div>
+                    <div className="absolute top-2 right-2 z-20 bg-black/60 px-2 py-1 rounded text-xs font-bold text-[#FF6847] flex items-center gap-1"><IconStar/> {m.vote_average ? m.vote_average.toFixed(1) : '-'}</div>
+                    <div className="relative z-20"><h3 className="text-base font-bold line-clamp-1">{m.title}</h3><p className="text-xs text-gray-400 mt-1">{m.release_year || 'Unknown'}</p></div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function DetailView({ movie, movies, onBack, onChangeMovie }) {
+      if(!movie) return null;
+      const similarData = useMemo(() => {
+        if (!movie.genres || movie.genres.length === 0) return [];
+        const mainGenre = movie.genres[0];
+        return movies.filter(m => m.movie_id !== movie.movie_id && (m.genres || []).includes(mainGenre))
+          .sort((a, b) => (b.popularity_score || 0) - (a.popularity_score || 0))
+          .slice(0, 5).map(m => ({ title: (m.title || '').substring(0,12) + '...', popularity: Math.round(m.popularity_score || 0) }));
+      }, [movie, movies]);
+
+      const rev = movie.revenue_worldwide_usd; const bud = movie.budget_usd;
+      const diff = rev && bud ? rev - bud : null; const ratio = rev && bud ? (rev / bud).toFixed(2) : null;
+      const popularity = movie.popularity_score ? movie.popularity_score.toFixed(1) : '0';
+      const score = movie.vote_average || 0;
+
+      return (
+        <div className="flex h-full gap-8 animate-in fade-in duration-500">
+          <div className="w-[30%] flex flex-col gap-6">
+            <button onClick={onBack} className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors w-max"><IconArrowLeft /> Back</button>
+            <select className="glass-panel w-full p-3 rounded-xl text-white outline-none appearance-none cursor-pointer" value={movie.movie_id} onChange={(e) => onChangeMovie(movies.find(m => m.movie_id === e.target.value))}>
+              {movies.slice(0,50).map(m => (<option key={m.movie_id} value={m.movie_id} className="bg-gray-900">{m.title}</option>))}
+            </select>
+            <div className="w-full aspect-[2/3] bg-gray-800 rounded-lg shadow-2xl relative overflow-hidden flex items-center justify-center">
+               <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=1925&auto=format&fit=crop')] bg-cover bg-center opacity-50"></div>
+               <span className="text-white/50 text-xl font-bold tracking-widest z-10 text-center px-4">{movie.title}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="glass-panel p-4 rounded-xl flex flex-col items-center justify-center text-center"><span className="text-[10px] text-gray-400 tracking-widest uppercase mb-1">Votes</span><span className="text-xl font-bold">{formatNumber(movie.vote_count)}</span></div>
+              <div className="glass-panel p-4 rounded-xl flex flex-col items-center justify-center text-center"><span className="text-[10px] text-gray-400 tracking-widest uppercase mb-1">Popularity</span><span className="text-xl font-bold text-[#FF6847]">{popularity}</span></div>
+              <div className="glass-panel p-4 rounded-xl flex flex-col items-center justify-center text-center"><span className="text-[10px] text-gray-400 tracking-widest uppercase mb-1">Duration</span><span className="text-xl font-bold">{movie.runtime_minutes || 0} min.</span></div>
+              <div className="glass-panel p-4 rounded-xl flex flex-col items-center justify-center text-center"><span className="text-[10px] text-gray-400 tracking-widest uppercase mb-1">Year</span><span className="text-xl font-bold">{movie.release_year || '-'}</span></div>
+            </div>
+          </div>
+          <div className="w-[70%] flex flex-col gap-6 pt-12">
+            <h1 className="text-4xl font-bold">{movie.title}</h1>
+            <div>
+              <span className="text-xs text-gray-400 uppercase tracking-widest block mb-3">Top Cast</span>
+              <div className="flex gap-4">
+                {[1,2,3,4,5].map(i => (
+                  <div key={i} className="flex flex-col items-center gap-2 group cursor-pointer"><div className="w-14 h-14 rounded-full bg-white/10 border border-white/20 group-hover:scale-110 transition-transform shadow-lg"></div><span className="text-[10px] text-gray-300">Actor {i}</span></div>
+                ))}
+              </div>
+            </div>
+            <div className="flex gap-6">
+              <div className="flex-1 glass-panel p-6 rounded-[20px]">
+                <span className="text-xs text-gray-400 uppercase tracking-widest block mb-3">Overview</span>
+                <p className="text-sm leading-relaxed text-gray-200">{movie.overview || "No overview available."}</p>
+                <div className="mt-4 flex gap-2 flex-wrap">{(movie.genres || []).map(g => <span key={g} className="text-[10px] uppercase border border-[#FF6847]/50 text-[#FF6847] px-2 py-1 rounded-full">{g}</span>)}</div>
+              </div>
+              <div className="w-1/3 glass-panel p-6 rounded-[20px] flex flex-col justify-between">
+                <div>
+                  <div className="mb-3"><span className="text-[10px] text-gray-400 uppercase tracking-widest block">Budget</span><span className="text-lg font-bold">{formatMoney(bud)}</span></div>
+                  <div className="mb-3"><span className="text-[10px] text-gray-400 uppercase tracking-widest block">Revenue</span><span className="text-lg font-bold text-green-400">{formatMoney(rev)}</span></div>
+                  <div className="mb-3 flex justify-between border-t border-white/10 pt-2"><span className="text-[10px] text-gray-400 uppercase tracking-widest">Rev - Budget</span><span className="text-sm font-bold">{formatMoney(diff)}</span></div>
+                  <div className="flex justify-between"><span className="text-[10px] text-gray-400 uppercase tracking-widest">Ratio</span><span className="text-sm font-bold text-[#FF6847]">{ratio ? `${ratio}x` : 'N/A'}</span></div>
+                </div>
+                <div className="mt-4 text-[9px] text-gray-500 leading-tight border-l-2 border-[#FF6847] pl-2">* ไม่รวมต้นทุนทางการตลาด (ตามสเปก)</div>
+              </div>
+            </div>
+            <div className="flex gap-6 h-64">
+              <div className="flex-1 glass-panel p-6 rounded-[20px] flex flex-col">
+                <span className="text-xs text-gray-400 uppercase tracking-widest block mb-4">Similar Movies (Popularity)</span>
+                <div className="flex-1 w-full">
+                  {window.Recharts && similarData.length > 0 && (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={similarData} layout="vertical" margin={{ top: 0, right: 20, left: 0, bottom: 0 }}>
+                        <XAxis type="number" hide />
+                        <YAxis dataKey="title" type="category" axisLine={false} tickLine={false} tick={{fill: '#a0a0a5', fontSize: 10}} width={80} />
+                        <Tooltip cursor={{fill: 'rgba(255,255,255,0.05)'}} contentStyle={{background: 'rgba(15,15,17,0.9)', border: '1px solid rgba(255,104,71,0.3)', borderRadius: '8px'}} />
+                        <Bar dataKey="popularity" fill="#FF6847" radius={[0,4,4,0]} barSize={12} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
+              </div>
+              <div className="w-1/3 glass-panel p-6 rounded-[20px] flex flex-col items-center justify-center relative">
+                <span className="text-xs text-gray-400 uppercase tracking-widest absolute top-6 left-6">TMDB Score</span>
+                <div className="w-full h-full mt-4">
+                  {window.Recharts && (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={[{ name: 'Score', value: score }, { name: 'Max', value: 10 - score }]} cx="50%" cy="50%" innerRadius="70%" outerRadius="90%" startAngle={90} endAngle={-270} dataKey="value" stroke="none">
+                          <Cell fill="#FF6847" /><Cell fill="rgba(255,255,255,0.05)" />
+                          <Label value={score.toFixed(1)} position="center" fill="#ffffff" style={{ fontSize: '2rem', fontWeight: 'bold' }} />
+                        </Pie>
+                      </PieChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Data Reference Footer */}
+            <div className="mt-8 text-center text-[10px] text-gray-500 border-t border-white/10 pt-4 pb-4">
+              Data Source: <a href="https://www.kaggle.com/datasets/tmdb/tmdb-movie-metadata" target="_blank" className="text-[#FF6847] hover:underline">TMDB 5000 Movie Dataset (Kaggle Open Data)</a>.<br/>
+              *This dashboard uses TMDB data for educational purposes but is not endorsed or certified by TMDB.
+            </div>
+
+          </div>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<ErrorBoundary><App /></ErrorBoundary>);
+  </script>
+</body>
+</html>

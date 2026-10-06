@@ -1,0 +1,10 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  /* Utility class สำหรับ Glassmorphism ที่ใช้งานซ้ำได้ทั่วแอป */
+  .glass-panel {
+    @apply bg-glassPanel backdrop-blur-glass border border-glassBorder rounded-vision shadow-2xl;
+  }
+}
