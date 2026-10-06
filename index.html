@@ -63,12 +63,8 @@
 
       useEffect(() => {
         fetch('data/processed/movies_clean.json')
-          .then(res => res.text())
-          .then(text => {
-            // แก้ไขปัญหา Python พ่นค่า NaN ออกมาใน JSON
-            const fixedText = text.replace(/:\s*NaN/g, ': null');
-            const data = JSON.parse(fixedText);
-            
+          .then(res => res.json())
+          .then(data => {
             const sorted = data.sort((a, b) => (b.popularity_score || 0) - (a.popularity_score || 0));
             setMovies(sorted); setSelectedMovie(sorted[0]); setLoading(false);
           })
@@ -186,7 +182,12 @@
         const mainGenre = movie.genres[0];
         return movies.filter(m => m.movie_id !== movie.movie_id && (m.genres || []).includes(mainGenre))
           .sort((a, b) => (b.popularity_score || 0) - (a.popularity_score || 0))
-          .slice(0, 5).map(m => ({ title: (m.title || '').substring(0,12) + '...', popularity: Math.round(m.popularity_score || 0) }));
+          .slice(0, 5).map(m => ({ 
+            title: (m.title || '').substring(0,12) + '...', 
+            fullTitle: m.title,
+            movie_id: m.movie_id,
+            popularity: Math.round(m.popularity_score || 0) 
+          }));
       }, [movie, movies]);
 
       const rev = movie.revenue_worldwide_usd; const bud = movie.budget_usd;
@@ -240,7 +241,7 @@
             </div>
             <div className="flex gap-6 h-64">
               <div className="flex-1 glass-panel p-6 rounded-[20px] flex flex-col">
-                <span className="text-xs text-gray-400 uppercase tracking-widest block mb-4">Similar Movies (Popularity)</span>
+                <span className="text-xs text-gray-400 uppercase tracking-widest block mb-4">Similar Movies (Click to change)</span>
                 <div className="flex-1 w-full">
                   {window.Recharts && similarData.length > 0 && (
                     <ResponsiveContainer width="100%" height="100%">
@@ -248,7 +249,19 @@
                         <XAxis type="number" hide />
                         <YAxis dataKey="title" type="category" axisLine={false} tickLine={false} tick={{fill: '#a0a0a5', fontSize: 10}} width={80} />
                         <Tooltip cursor={{fill: 'rgba(255,255,255,0.05)'}} contentStyle={{background: 'rgba(15,15,17,0.9)', border: '1px solid rgba(255,104,71,0.3)', borderRadius: '8px'}} />
-                        <Bar dataKey="popularity" fill="#FF6847" radius={[0,4,4,0]} barSize={12} />
+                        <Bar 
+                           dataKey="popularity" 
+                           fill="#FF6847" 
+                           radius={[0,4,4,0]} 
+                           barSize={12} 
+                           onClick={(data) => {
+                             if(data && data.movie_id) {
+                               const clicked = movies.find(m => m.movie_id === data.movie_id);
+                               if(clicked) onChangeMovie(clicked);
+                             }
+                           }}
+                           style={{ cursor: 'pointer' }}
+                        />
                       </BarChart>
                     </ResponsiveContainer>
                   )}
