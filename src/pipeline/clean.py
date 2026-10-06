@@ -80,6 +80,7 @@ SCHEMA_FIELDS = [
     "runtime_minutes",
     "genres",
     "directors",
+    "cast",
     "budget_usd",
     "revenue_worldwide_usd",
     "revenue_budget_diff_usd",
@@ -95,7 +96,7 @@ SCHEMA_FIELDS = [
 def standardize_schema(df: pd.DataFrame) -> pd.DataFrame:
     for field in SCHEMA_FIELDS:
         if field not in df.columns:
-            df[field] = np.nan if field not in ["genres", "country_origin"] else None
+            df[field] = np.nan if field not in ["genres", "country_origin", "cast"] else None
 
     if "vote_count" in df.columns:
         df["vote_count"] = df["vote_count"].fillna(0).astype(int)

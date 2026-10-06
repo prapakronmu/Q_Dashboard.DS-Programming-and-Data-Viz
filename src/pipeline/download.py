@@ -17,7 +17,13 @@ MOVIES_URLS = [
     "https://raw.githubusercontent.com/vamshi121/TMDB-5000-Movie-Dataset/master/tmdb_5000_movies.csv",
 ]
 
+CREDITS_URLS = [
+    "https://raw.githubusercontent.com/vamshi121/TMDB-5000-Movie-Dataset/main/tmdb_5000_credits.csv",
+    "https://raw.githubusercontent.com/vamshi121/TMDB-5000-Movie-Dataset/master/tmdb_5000_credits.csv",
+]
+
 RAW_MOVIES_PATH = Path("data/raw/tmdb_5000_movies.csv")
+RAW_CREDITS_PATH = Path("data/raw/tmdb_5000_credits.csv")
 PROCESSED_PATH = Path("data/processed/movies_clean.json")
 
 def download_file(urls: list[str], dest: Path) -> bool:
@@ -46,7 +52,23 @@ def _parse_json_col(value, key: str) -> list:
     except Exception:
         return []
 
-def transform_movies(movies_df: pd.DataFrame) -> pd.DataFrame:
+def _parse_cast(value) -> list:
+    if pd.isna(value) or value in ("", "[]"):
+        return []
+    try:
+        items = ast.literal_eval(value)
+        # Extract top 6 cast members with their profile path if available
+        cast = []
+        for item in items[:6]:
+            cast.append({
+                "name": item.get("name", "Unknown"),
+                "img": "https://image.tmdb.org/t/p/w200" + item.get("profile_path", "") if item.get("profile_path") else "https://ui-avatars.com/api/?name=" + item.get("name", "U")
+            })
+        return cast
+    except Exception:
+        return []
+
+def transform_movies(movies_df: pd.DataFrame, credits_df: pd.DataFrame) -> pd.DataFrame:
     df = pd.DataFrame()
 
     df["movie_id"]  = "tmdb-" + movies_df["id"].astype(str)
@@ -66,6 +88,14 @@ def transform_movies(movies_df: pd.DataFrame) -> pd.DataFrame:
     else:
         df["country_origin"] = [[] for _ in range(len(df))]
 
+    # Merge credits
+    # Rename movie_id in credits to match id
+    credits_df["movie_id"] = "tmdb-" + credits_df["movie_id"].astype(str)
+    
+    # Map cast
+    cast_map = credits_df.set_index("movie_id")["cast"].apply(_parse_cast).to_dict()
+    df["cast"] = df["movie_id"].map(cast_map).apply(lambda x: x if isinstance(x, list) else [])
+
     df["directors"] = [["Unknown"] for _ in range(len(df))]
     df["title_type"] = "movie"
 
@@ -78,14 +108,23 @@ def main():
 
     ok = download_file(MOVIES_URLS, RAW_MOVIES_PATH)
     if not ok:
-        print("[ERROR] Failed to download dataset.")
+        print("[ERROR] Failed to download movies dataset.")
         sys.exit(1)
-
+        
+    ok2 = download_file(CREDITS_URLS, RAW_CREDITS_PATH)
+    if not ok2:
+        print("[WARN] Failed to download credits dataset. Cast will be empty.")
+        credits_df = pd.DataFrame(columns=["movie_id", "cast"])
+    else:
+        credits_df = pd.read_csv(RAW_CREDITS_PATH, low_memory=False)
+        
     movies_df = pd.read_csv(RAW_MOVIES_PATH, low_memory=False)
-    df_raw = transform_movies(movies_df)
+    
+    df_raw = transform_movies(movies_df, credits_df)
     df_clean = run_pipeline(df_raw)
     save_processed(df_clean, PROCESSED_PATH)
     print(f"[OK] Saved {len(df_clean)} movies to {PROCESSED_PATH}")
 
 if __name__ == "__main__":
     main()
+

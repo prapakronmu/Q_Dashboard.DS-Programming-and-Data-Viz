@@ -429,21 +429,19 @@
           }));
       }, [movie, allMovies]);
 
+      const chartData = useMemo(() => {
+        const data = [
+          { name: (movie.title || '').substring(0, 16) + ' (This)', popularity: parseFloat((movie.popularity_score || 0).toFixed(1)), isCurrent: true }
+        ];
+        similarMovies.forEach(m => data.push({ ...m, isCurrent: false }));
+        return data.sort((a, b) => b.popularity - a.popularity);
+      }, [movie, similarMovies]);
+
       const rev = movie.revenue_worldwide_usd;
       const bud = movie.budget_usd;
       const diff = rev && bud ? rev - bud : null;
       const ratio = rev && bud ? (rev / bud).toFixed(2) : null;
       const score = movie.vote_average || 7.4;
-
-      // Dummy cast data matching Image1.webp layout
-      const cast = [
-        { name: 'Jack Champion', img: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop' },
-        { name: 'Oona Chaplin', img: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=200&auto=format&fit=crop' },
-        { name: 'Sam Worthington', img: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=200&auto=format&fit=crop' },
-        { name: 'Sigourney Weaver', img: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=200&auto=format&fit=crop' },
-        { name: 'Stephen Lang', img: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=200&auto=format&fit=crop' },
-        { name: 'Zoe Saldaña', img: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?q=80&w=200&auto=format&fit=crop' }
-      ];
 
       return (
         <div className="flex h-full gap-6 animate-in fade-in duration-500 overflow-y-auto">
@@ -501,16 +499,12 @@
           {/* Middle Area: Cast, Overview, Similar Movies Horizontal Bar Chart */}
           <div className="w-[47%] flex flex-col gap-4">
             
-            {/* Top Cast Avatars Row */}
+            {/* Top Cast Avatars Row (Empty State) */}
             <div>
               <span className="text-[10px] text-gray-400 uppercase tracking-widest block mb-2 font-semibold">Top Cast</span>
-              <div className="flex items-center gap-3 overflow-x-auto pb-1">
-                {cast.map((c, i) => (
-                  <div key={i} className="flex flex-col items-center gap-1 min-w-[64px]">
-                    <img src={c.img} alt={c.name} className="w-12 h-12 rounded-xl object-cover border border-white/20 shadow-md" />
-                    <span className="text-[9px] text-gray-300 text-center line-clamp-1">{c.name}</span>
-                  </div>
-                ))}
+              <div className="glass-card rounded-vision border border-dashed border-white/20 p-4 flex flex-col items-center justify-center text-center gap-2">
+                <span className="text-xl opacity-60">🎭</span>
+                <span className="text-xs text-gray-400 font-medium">ไม่มีข้อมูลนักแสดงในชุดข้อมูลนี้</span>
               </div>
             </div>
 
