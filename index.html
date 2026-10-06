@@ -67,8 +67,10 @@
 
       useEffect(() => {
         fetch('data/processed/movies_clean.json')
-          .then(res => res.json())
-          .then(data => {
+          .then(res => res.text())
+          .then(text => {
+            const sanitizedText = text.replace(/:\s*NaN/g, ': null').replace(/:\s*Infinity/g, ': null');
+            const data = JSON.parse(sanitizedText);
             const sorted = data.sort((a, b) => (b.popularity_score || 0) - (a.popularity_score || 0));
             setMovies(sorted); setSelectedMovie(sorted[0]); setLoading(false);
           })

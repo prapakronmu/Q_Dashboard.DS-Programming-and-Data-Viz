@@ -213,11 +213,13 @@ def run_pipeline(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def save_processed(df: pd.DataFrame, output_path: Path) -> None:
-    """Save cleaned DataFrame to JSON (records format)."""
+    """Save cleaned DataFrame to JSON (records format), guaranteeing no NaN/Infinity values."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    records = df.where(df.notna(), other=None).to_dict(orient="records")
+    # df.to_json naturally serializes NaN, NaT, and Inf as null
+    json_str = df.to_json(orient="records", date_format="iso", force_ascii=False)
+    records = json.loads(json_str)
     with open(output_path, "w", encoding="utf-8") as f:
-        json.dump(records, f, ensure_ascii=False, indent=2, default=str)
+        json.dump(records, f, ensure_ascii=False, indent=4)
     print(f"[save] Wrote {len(records)} records to {output_path}")
 
 
