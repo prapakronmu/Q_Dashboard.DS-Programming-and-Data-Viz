@@ -26,7 +26,9 @@
   <style>
     body { font-family: 'Inter', 'SF Pro Display', sans-serif; }
     .glass-panel { background: rgba(30, 30, 35, 0.45); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
-    ::-webkit-scrollbar { width: 0px; height: 0px; }
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-thumb { background: rgba(255, 104, 71, 0.4); border-radius: 4px; }
+    ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.2); }
   </style>
 </head>
 <body class="bg-black text-white min-h-screen overflow-hidden">
@@ -34,7 +36,7 @@
 
   <script type="text/babel">
     const { useState, useEffect, useMemo } = React;
-    const { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Label } = window.Recharts || {};
+    const { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Label, ScatterChart, Scatter, AreaChart, Area, CartesianGrid } = window.Recharts || {};
 
     class ErrorBoundary extends React.Component {
       constructor(props) { super(props); this.state = { hasError: false, error: null }; }
@@ -46,6 +48,7 @@
     }
 
     const IconHome = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>;
+    const IconAnalytics = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>;
     const IconSearch = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>;
     const IconPlay = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>;
     const IconStar = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>;
@@ -56,10 +59,11 @@
 
     function App() {
       const [movies, setMovies] = useState([]);
-      const [view, setView] = useState('home');
+      const [view, setView] = useState('home'); // 'home' | 'detail' | 'analytics'
       const [selectedMovie, setSelectedMovie] = useState(null);
       const [loading, setLoading] = useState(true);
       const [errorMsg, setErrorMsg] = useState('');
+      const [searchQuery, setSearchQuery] = useState('');
 
       useEffect(() => {
         fetch('data/processed/movies_clean.json')
@@ -78,40 +82,42 @@
       const trendingMovies = movies.slice(1, 15);
       
       return (
-        <div className="relative w-full h-screen flex">
+        <div className="relative w-full h-screen flex text-sm text-white">
+          {/* Background Ambient Glows */}
           <div className="fixed inset-0 z-[-1] overflow-hidden">
             <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-[#FF6847]/30 rounded-full blur-[120px]"></div>
             <div className="absolute bottom-[-10%] right-[-10%] w-[60vw] h-[60vw] bg-indigo-900/30 rounded-full blur-[150px]"></div>
             <div className="absolute inset-0 bg-black/60 backdrop-blur-[64px]"></div>
           </div>
-          <div className="w-[5%] flex flex-col items-center py-8 border-r border-white/10 bg-black/20 backdrop-blur-md">
-            <button onClick={() => setView('home')} className={`p-3 rounded-xl transition-all ${view === 'home' ? 'bg-[#FF6847] text-white shadow-[0_0_15px_rgba(255,104,71,0.5)]' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}>
+          
+          {/* Sidebar */}
+          <div className="w-[5%] flex flex-col items-center py-8 border-r border-white/10 bg-black/20 backdrop-blur-md z-20">
+            <button onClick={() => setView('home')} className={`p-3 rounded-xl transition-all mb-4 ${view === 'home' || view === 'detail' ? 'bg-[#FF6847] text-white shadow-[0_0_15px_rgba(255,104,71,0.5)]' : 'text-gray-400 hover:text-white hover:bg-white/10'}`} title="Home / Movie Details">
               <IconHome />
             </button>
-            <div className="mt-8 flex flex-col gap-6 text-gray-500">
-              <div className="p-3 hover:text-white cursor-pointer"><IconSearch /></div>
-              <div className="p-3 hover:text-white cursor-pointer"><IconStar /></div>
-            </div>
+            <button onClick={() => setView('analytics')} className={`p-3 rounded-xl transition-all ${view === 'analytics' ? 'bg-[#FF6847] text-white shadow-[0_0_15px_rgba(255,104,71,0.5)]' : 'text-gray-400 hover:text-white hover:bg-white/10'}`} title="Full EDA Analytics Dashboard">
+              <IconAnalytics />
+            </button>
           </div>
-          <div className="flex-1 h-full overflow-hidden flex flex-col">
-            <header className="h-20 w-full flex items-center justify-between px-10">
+
+          {/* Main Layout */}
+          <div className="flex-1 h-full overflow-hidden flex flex-col z-10 relative">
+            <header className="h-20 w-full flex items-center justify-between px-10 border-b border-white/5 bg-black/10">
               <div className="glass-panel px-4 py-2 flex items-center gap-2 rounded-full w-96 text-sm text-gray-400">
                 <IconSearch />
-                <input type="text" placeholder="Search movies, TV shows..." className="bg-transparent outline-none w-full text-white" />
+                <input type="text" placeholder="Search movies by title..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="bg-transparent outline-none w-full text-white" />
               </div>
               <div className="flex items-center gap-6">
-                <span className="font-semibold text-sm">Movies</span>
-                <span className="text-gray-400 text-sm">TV Series</span>
-                <span className="text-gray-400 text-sm">Animation</span>
+                <button onClick={() => setView('home')} className={`text-sm font-semibold ${view === 'home' ? 'text-[#FF6847]' : 'text-gray-400'}`}>Showcase</button>
+                <button onClick={() => setView('analytics')} className={`text-sm font-semibold ${view === 'analytics' ? 'text-[#FF6847]' : 'text-gray-400'}`}>Analytics Dashboard</button>
                 <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#FF6847] to-purple-500 border-2 border-white/20"></div>
               </div>
             </header>
-            <div className="flex-1 overflow-y-auto px-10 pb-10">
-              {view === 'home' ? (
-                <HomeView featured={featuredMovie} trending={trendingMovies} onSelect={(m) => { setSelectedMovie(m); setView('detail'); }} />
-              ) : (
-                <DetailView movie={selectedMovie} movies={movies} onBack={() => setView('home')} onChangeMovie={setSelectedMovie} />
-              )}
+
+            <div className="flex-1 overflow-y-auto px-10 pb-10 pt-6">
+              {view === 'home' && <HomeView featured={featuredMovie} trending={trendingMovies} onSelect={(m) => { setSelectedMovie(m); setView('detail'); }} />}
+              {view === 'detail' && <DetailView movie={selectedMovie} movies={movies} onBack={() => setView('home')} onChangeMovie={setSelectedMovie} />}
+              {view === 'analytics' && <FullDashboardView movies={movies} searchQuery={searchQuery} onSelectMovie={(m) => { setSelectedMovie(m); setView('detail'); }} />}
             </div>
           </div>
         </div>
@@ -153,13 +159,12 @@
                  <h1 className="text-5xl font-bold mb-4 drop-shadow-lg">{featured.title}</h1>
                  <p className="text-sm text-gray-300 line-clamp-2 mb-6 leading-relaxed">{featured.overview || "No overview available for this featured title."}</p>
                  <div className="flex gap-4">
-                   <button className="px-8 py-3 bg-[#FF6847] text-white font-semibold rounded-full flex items-center gap-2 hover:bg-[#FF8469] transition-colors shadow-lg shadow-[#FF6847]/20"><IconPlay /> Watch Now</button>
-                   <button className="px-8 py-3 bg-white/10 text-white font-semibold rounded-full hover:bg-white/20 transition-colors border border-white/10">+ Favorite</button>
+                   <button className="px-8 py-3 bg-[#FF6847] text-white font-semibold rounded-full flex items-center gap-2 hover:bg-[#FF8469] transition-colors shadow-lg shadow-[#FF6847]/20"><IconPlay /> Open Details</button>
                  </div>
                </div>
             </div>
             <div>
-              <div className="flex justify-between items-end mb-4"><h2 className="text-2xl font-bold">You Might Like</h2><span className="text-sm text-[#FF6847] cursor-pointer">See All</span></div>
+              <div className="flex justify-between items-end mb-4"><h2 className="text-2xl font-bold">Popular Movies</h2></div>
               <div className="flex gap-4 overflow-x-auto pb-4 pt-2 -mx-2 px-2 snap-x">
                 {trending.map(m => (
                   <div key={m.movie_id} onClick={() => onSelect(m)} className="shrink-0 w-48 h-72 glass-panel rounded-xl flex flex-col justify-end p-4 cursor-pointer hover:scale-105 transition-all duration-300 snap-start relative group overflow-hidden">
@@ -200,7 +205,7 @@
           <div className="w-[30%] flex flex-col gap-6">
             <button onClick={onBack} className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors w-max"><IconArrowLeft /> Back</button>
             
-            {/* แสดงหนังครบทั้ง 4,800+ เรื่อง */}
+            {/* Movie Selector Dropdown */}
             <select className="glass-panel w-full p-3 rounded-xl text-white outline-none appearance-none cursor-pointer" value={movie.movie_id} onChange={(e) => onChangeMovie(movies.find(m => m.movie_id === e.target.value))}>
               {movies.map(m => (<option key={m.movie_id} value={m.movie_id} className="bg-gray-900">{m.title}</option>))}
             </select>
@@ -244,7 +249,7 @@
             </div>
             <div className="flex gap-6 h-64">
               <div className="flex-1 glass-panel p-6 rounded-[20px] flex flex-col">
-                <span className="text-xs text-gray-400 uppercase tracking-widest block mb-4">Similar Movies (Click to change)</span>
+                <span className="text-xs text-gray-400 uppercase tracking-widest block mb-4">Similar Movies (Click bar to select)</span>
                 <div className="flex-1 w-full">
                   {window.Recharts && similarData.length > 0 && (
                     <ResponsiveContainer width="100%" height="100%">
@@ -293,6 +298,191 @@
               *This dashboard uses TMDB data for educational purposes but is not endorsed or certified by TMDB.
             </div>
 
+          </div>
+        </div>
+      );
+    }
+
+    // --- FULL ANALYTICS DASHBOARD (Streamlit Functionality in Glassmorphism UI) ---
+    function FullDashboardView({ movies, searchQuery, onSelectMovie }) {
+      const [yearRange, setYearRange] = useState([1950, 2024]);
+      const [selectedGenre, setSelectedGenre] = useState('All');
+
+      const allGenres = useMemo(() => {
+        const set = new Set();
+        movies.forEach(m => (m.genres || []).forEach(g => set.add(g)));
+        return ['All', ...Array.from(set).sort()];
+      }, [movies]);
+
+      const filtered = useMemo(() => {
+        return movies.filter(m => {
+          if(searchQuery && !m.title.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+          if(m.release_year && (m.release_year < yearRange[0] || m.release_year > yearRange[1])) return false;
+          if(selectedGenre !== 'All' && !(m.genres || []).includes(selectedGenre)) return false;
+          return true;
+        });
+      }, [movies, searchQuery, yearRange, selectedGenre]);
+
+      // KPIs
+      const totalMovies = filtered.length;
+      const finMovies = filtered.filter(m => m.budget_usd > 0 && m.revenue_worldwide_usd > 0);
+      const avgBudget = finMovies.length ? finMovies.reduce((a,b)=>a+b.budget_usd,0)/finMovies.length : 0;
+      const avgRevenue = finMovies.length ? finMovies.reduce((a,b)=>a+b.revenue_worldwide_usd,0)/finMovies.length : 0;
+      const avgRatio = finMovies.length ? finMovies.reduce((a,b)=>a+(b.revenue_to_budget_ratio||0),0)/finMovies.length : 0;
+      const avgScore = filtered.length ? filtered.reduce((a,b)=>a+(b.vote_average||0),0)/filtered.length : 0;
+
+      // Data for Charts
+      const scatterData = useMemo(() => finMovies.map(m => ({ 
+        x: m.budget_usd/1e6, 
+        y: m.revenue_worldwide_usd/1e6, 
+        z: m.vote_average, 
+        name: m.title,
+        movie_id: m.movie_id
+      })), [finMovies]);
+
+      const yearlyData = useMemo(() => {
+        const counts = {};
+        filtered.forEach(m => { if(m.release_year) counts[m.release_year] = (counts[m.release_year]||0) + 1; });
+        return Object.keys(counts).sort().map(y => ({ year: y, count: counts[y] }));
+      }, [filtered]);
+
+      const genreData = useMemo(() => {
+        const revs = {}; const counts = {};
+        finMovies.forEach(m => {
+          (m.genres||[]).forEach(g => { revs[g] = (revs[g]||0) + m.revenue_worldwide_usd; counts[g] = (counts[g]||0) + 1; });
+        });
+        return Object.keys(revs).filter(g => counts[g] >= 3).map(g => ({ genre: g, avgRev: (revs[g]/counts[g])/1e6 })).sort((a,b)=>b.avgRev-a.avgRev).slice(0,10);
+      }, [finMovies]);
+
+      return (
+        <div className="animate-in fade-in duration-500 flex flex-col gap-6 text-white pb-10">
+          <div className="flex justify-between items-center bg-black/20 p-4 rounded-2xl glass-panel">
+            <div>
+              <h1 className="text-3xl font-bold">🎬 Live-action Movie Analytics</h1>
+              <p className="text-gray-400 text-xs mt-1">Full EDA Dashboard • Showing {totalMovies.toLocaleString()} movies</p>
+            </div>
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-2">
+                 <span className="text-gray-400 text-xs">Genre:</span>
+                 <select value={selectedGenre} onChange={e => setSelectedGenre(e.target.value)} className="bg-gray-900 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white outline-none">
+                   {allGenres.map(g => <option key={g} value={g}>{g}</option>)}
+                 </select>
+              </div>
+              <div className="flex items-center gap-3 bg-black/40 px-4 py-2 rounded-xl border border-white/10">
+                 <span className="text-gray-400 text-xs">Year Range:</span>
+                 <input type="range" min="1950" max="2024" value={yearRange[0]} onChange={e => setYearRange([parseInt(e.target.value), yearRange[1]])} />
+                 <span className="text-xs font-bold text-[#FF6847]">{yearRange[0]} - {yearRange[1]}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* KPI Cards Row */}
+          <div className="grid grid-cols-5 gap-4">
+             {[
+               {l: "🎥 Total Movies", v: formatNumber(totalMovies)},
+               {l: "⭐ Avg Rating", v: avgScore.toFixed(2), c: "text-yellow-400"},
+               {l: "💰 Avg Budget", v: formatMoney(avgBudget)},
+               {l: "🌍 Avg Revenue", v: formatMoney(avgRevenue), c: "text-green-400"},
+               {l: "📊 Avg Rev/Budget Ratio", v: avgRatio.toFixed(2)+'x', c: "text-[#FF6847]"}
+             ].map((k,i) => (
+               <div key={i} className="glass-panel p-4 rounded-xl flex flex-col justify-center border border-white/5">
+                 <span className="text-[10px] text-gray-400 uppercase tracking-widest mb-1">{k.l}</span>
+                 <span className={`text-2xl font-bold ${k.c||''}`}>{k.v}</span>
+               </div>
+             ))}
+          </div>
+
+          {/* Row 1 — Budget vs Revenue Scatter & Genre Profitability Bar */}
+          <div className="flex gap-6 h-80">
+            <div className="flex-1 glass-panel p-5 rounded-2xl flex flex-col">
+               <h3 className="text-sm font-bold text-gray-300 mb-2">💵 Budget vs Worldwide Revenue (USD Millions)</h3>
+               <p className="text-[10px] text-gray-500 mb-4">* Click point to view movie details</p>
+               {window.Recharts && (
+               <ResponsiveContainer width="100%" height="100%">
+                 <ScatterChart margin={{top:0, right:20, bottom:20, left:20}}>
+                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)"/>
+                   <XAxis type="number" dataKey="x" name="Budget" stroke="#a0a0a5" tick={{fontSize:10}} tickFormatter={v=>`$${v}M`}/>
+                   <YAxis type="number" dataKey="y" name="Revenue" stroke="#a0a0a5" tick={{fontSize:10}} tickFormatter={v=>`$${v}M`}/>
+                   <Tooltip cursor={{strokeDasharray: '3 3'}} contentStyle={{background: 'rgba(15,15,17,0.95)', border: '1px solid rgba(255,104,71,0.3)', borderRadius:'8px'}} formatter={(v,n)=>[ `$${Number(v).toFixed(1)}M`, n]}/>
+                   <Scatter data={scatterData} fill="#FF6847" opacity={0.7} onClick={(node) => {
+                     if(node && node.movie_id) {
+                       const found = movies.find(m => m.movie_id === node.movie_id);
+                       if(found) onSelectMovie(found);
+                     }
+                   }} style={{cursor:'pointer'}} />
+                 </ScatterChart>
+               </ResponsiveContainer>
+               )}
+            </div>
+            <div className="flex-1 glass-panel p-5 rounded-2xl flex flex-col">
+               <h3 className="text-sm font-bold text-gray-300 mb-4">🎭 Top Genres by Avg Worldwide Revenue</h3>
+               {window.Recharts && (
+               <ResponsiveContainer width="100%" height="100%">
+                 <BarChart data={genreData} layout="vertical" margin={{top:0, right:20, bottom:0, left:0}}>
+                   <XAxis type="number" hide />
+                   <YAxis dataKey="genre" type="category" axisLine={false} tickLine={false} stroke="#a0a0a5" tick={{fontSize:10}} width={90}/>
+                   <Tooltip cursor={{fill: 'rgba(255,255,255,0.05)'}} contentStyle={{background: 'rgba(15,15,17,0.95)', borderRadius:'8px', border:'none'}} formatter={v=>`$${Number(v).toFixed(1)}M`}/>
+                   <Bar dataKey="avgRev" fill="#10B981" radius={[0,4,4,0]} barSize={14} />
+                 </BarChart>
+               </ResponsiveContainer>
+               )}
+            </div>
+          </div>
+
+          {/* Row 2 — Movies Per Year & Full Dataset Table */}
+          <div className="flex gap-6">
+            <div className="w-1/3 glass-panel p-5 rounded-2xl h-96 flex flex-col">
+               <h3 className="text-sm font-bold text-gray-300 mb-4">📈 Number of Movies Released Per Year</h3>
+               {window.Recharts && (
+               <ResponsiveContainer width="100%" height="100%">
+                 <AreaChart data={yearlyData} margin={{top:0, right:0, bottom:0, left:-20}}>
+                   <XAxis dataKey="year" stroke="#a0a0a5" tick={{fontSize:10}}/>
+                   <YAxis stroke="#a0a0a5" tick={{fontSize:10}}/>
+                   <Tooltip contentStyle={{background: 'rgba(15,15,17,0.95)', borderRadius:'8px', border:'none'}}/>
+                   <Area type="monotone" dataKey="count" stroke="#FF6847" fill="rgba(255,104,71,0.2)" />
+                 </AreaChart>
+               </ResponsiveContainer>
+               )}
+            </div>
+            
+            {/* Full Dataset Table (Same as Streamlit) */}
+            <div className="w-2/3 glass-panel p-5 rounded-2xl h-96 flex flex-col">
+               <div className="flex justify-between items-center mb-4">
+                 <h3 className="text-sm font-bold text-gray-300">📋 Full Dataset Table ({filtered.length} Movies)</h3>
+                 <span className="text-[10px] text-gray-500">* Click row to inspect details</span>
+               </div>
+               <div className="overflow-auto flex-1 border border-white/5 rounded-xl">
+                 <table className="w-full text-left border-collapse">
+                   <thead>
+                     <tr className="text-gray-400 text-xs border-b border-white/10 bg-[#151518]">
+                       <th className="p-3 sticky top-0 bg-[#151518]">Title</th>
+                       <th className="p-3 sticky top-0 bg-[#151518]">Year</th>
+                       <th className="p-3 sticky top-0 bg-[#151518]">Genres</th>
+                       <th className="p-3 sticky top-0 bg-[#151518]">Budget</th>
+                       <th className="p-3 sticky top-0 bg-[#151518]">Revenue</th>
+                       <th className="p-3 sticky top-0 bg-[#151518]">Score</th>
+                     </tr>
+                   </thead>
+                   <tbody className="text-xs">
+                     {filtered.map(m => (
+                       <tr key={m.movie_id} onClick={() => onSelectMovie(m)} className="border-b border-white/5 hover:bg-white/10 cursor-pointer transition-colors">
+                         <td className="p-3 font-medium text-white">{m.title}</td>
+                         <td className="p-3 text-gray-400">{m.release_year || '-'}</td>
+                         <td className="p-3 text-gray-400">{(m.genres||[]).slice(0,2).join(', ')}</td>
+                         <td className="p-3 text-gray-300">{formatMoney(m.budget_usd)}</td>
+                         <td className="p-3 text-green-400 font-semibold">{formatMoney(m.revenue_worldwide_usd)}</td>
+                         <td className="p-3 text-[#FF6847] font-bold">{m.vote_average ? m.vote_average.toFixed(1) : '-'}</td>
+                       </tr>
+                     ))}
+                   </tbody>
+                 </table>
+               </div>
+            </div>
+          </div>
+
+          <div className="mt-4 text-center text-[10px] text-gray-500 border-t border-white/10 pt-4">
+            Data Source: <a href="https://www.kaggle.com/datasets/tmdb/tmdb-movie-metadata" target="_blank" className="text-[#FF6847] hover:underline">TMDB 5000 Movie Dataset (Kaggle Open Data)</a>.<br/>
+            *This dashboard integrates full Streamlit-style EDA features directly into the React App.
           </div>
         </div>
       );
